@@ -1,0 +1,15 @@
+# created by virtualenv automatically
+# Virtual Environments
+
+.venv/
+venv/
+env/
+
+#database files
+*.db
+*.sqlite3
+
+#Pycharm files
+.idea/
+__pycache__/
+*.pyc
