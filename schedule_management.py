@@ -78,7 +78,7 @@ class DatabaseManager:
     self._setup_database()
 
   def _setup_database(self):
-    """This function will setup the master database"""
+    """This function will set up the master database"""
     with sqlite3.connect(self._db_name) as connection:
       cursor = connection.cursor()
 
@@ -209,7 +209,7 @@ class ScheduleManagementWindow(QMainWindow):
     self.task_list = QListWidget()
     self.task_list.itemChanged.connect(self.complete_task)
 
-    #Lock all of the build together
+    #Lock all the build together
     layout.addWidget(self.tabs)
     layout.addWidget(self.task_list)
     central_container.setLayout(layout)
@@ -235,7 +235,7 @@ class ScheduleManagementWindow(QMainWindow):
 
     #building the backend object
     new_task = TaskTicket(title=input_text, description="Created via GUI")
-    #Keeps it in short term storage
+    #Keeps it in short-term storage
     self._all_tickets.append(new_task)
     #Saves it to the database
     generate_id = self._db.save_new_ticket(ticket_type="Task", title=input_text, description="Created via GUI")
@@ -342,6 +342,7 @@ class ScheduleManagementWindow(QMainWindow):
 
   def load_saved_tickets(self):
     """Method to load saved tasks from the database."""
+
     saved_tickets = self._db.get_all_tickets()
 
     for row in saved_tickets:
@@ -376,7 +377,7 @@ class ScheduleManagementWindow(QMainWindow):
 
 
 if __name__ == "__main__":
-  #Startt the Application
+  #Start the Application
   app = QApplication(sys.argv)
 
   #instantiate the window
