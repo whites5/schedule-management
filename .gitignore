@@ -13,3 +13,11 @@ env/
 .idea/
 __pycache__/
 *.pyc
+
+#installer
+*.exe
+*.pkg
+
+#OS files
+.DS_Store
+Thumbs.db

@@ -3,6 +3,9 @@ from PySide6. QtWidgets import *
 from PySide6.QtCore import *
 import sqlite3
 import sys
+import os
+
+version = "1.0.0"
 
 class ScheduleManagement:
   """This is the class for the ability to create and control
@@ -376,7 +379,8 @@ class ScheduleManagementWindow(QMainWindow):
 
 
 
-if __name__ == "__main__":
+def main():
+  """This is the main function to start the application."""
   #Start the Application
   app = QApplication(sys.argv)
 
@@ -386,5 +390,27 @@ if __name__ == "__main__":
 
   #to allow the application to exit
   sys.exit(app.exec())
+  
+import subprocess
 
 
+def build_exe():
+  exe_name = f"Task_and_Azure_Ticket_Management_{version}"
+
+  subprocess.run([
+      sys.executable, "-m", "PyInstaller",
+      "--onefile",
+      "--noconsole",
+      "--name", f"Task_and_Azure_Ticket_Management_{version}",
+      "--collect-all", "PySide6",
+      __file__
+  ])
+  
+  print(f"\n✅ Build complete: dist/{exe_name}.exe")
+
+
+if __name__ == "__main__":
+    if "--build" in sys.argv:
+        build_exe()
+    else:
+        main()
