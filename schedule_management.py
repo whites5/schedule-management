@@ -4,6 +4,8 @@ from PySide6.QtCore import *
 import sqlite3
 import sys
 import os
+import pandas as pd
+import openpyxl
 
 version = "1.0.0"
 
@@ -102,6 +104,13 @@ class DatabaseManager:
       end_date TEXT)
                      """)
       connection.commit()
+      try:
+        cursor.execute("ALTER TABLE tickets ADD COLUMN start_date TEXT")
+        cursor.execute("ALTER TABLE tickets ADD COLUMN end_date TEXT")
+        connection.commit()
+        print("Database successfully updated!")
+      except sqlite3.OperationalError:
+        print("Database already up to date!")
 
   def save_new_ticket(self, ticket_type, title, description, ticket_number="", ticket_url="", story_points=0, start_date="", end_date=""):
     """This function will save a new ticket to the database"""
@@ -139,6 +148,16 @@ class DatabaseManager:
 
       connection.commit()
 
+  def wipe_database(self):
+    """This function will wipe the database"""
+    with sqlite3.connect(self._db_name) as connection:
+      cursor = connection.cursor()
+
+      """using DELETE to remove a row, WHERE to make sure we only remove the specific clicked ticket."""
+      cursor.execute("""
+        DELETE FROM tickets""")
+      connection.commit()
+
 class ScheduleManagementWindow(QMainWindow):
   """This is the start of the GUI Application
   for the Schedule Management System."""
@@ -146,11 +165,15 @@ class ScheduleManagementWindow(QMainWindow):
     super().__init__()
 
     #set the window properties and title
+    self._db_db_name = None
     self.setWindowTitle("Schedule Management System")
     self.resize(800,600)
 
     #database setup
     self._db = DatabaseManager()
+
+    #database wipe
+    self._db.wipe_database()
 
     #the storage list for all tasks
     self._all_tickets = []
@@ -178,17 +201,17 @@ class ScheduleManagementWindow(QMainWindow):
 
     self.task_field = QLineEdit()
     self.task_field.setPlaceholderText("Enter a task")
-    
-    #calendar widget 
+
+    #calendar widget
     self.start_date_edit = QDateEdit()
     self.start_date_edit.setCalendarPopup(True)
     self.start_date_edit.setDate(QDate.currentDate())
-    
+
     self.end_date_edit = QDateEdit()
     self.end_date_edit.setCalendarPopup(True)
     self.end_date_edit.setDate(QDate.currentDate())
-    
-    
+
+
 
     self.add_button = QPushButton("Add Task")
     self.add_button.clicked.connect(self.add_task)
@@ -231,14 +254,41 @@ class ScheduleManagementWindow(QMainWindow):
     self.task_list = QListWidget()
     self.task_list.itemChanged.connect(self.complete_task)
 
+    self.update_to_excel = QPushButton("Export to Excel")
+    self.update_to_excel.clicked.connect(self.export_to_excel)
+
     #Lock all the build together
     layout.addWidget(self.tabs)
     layout.addWidget(self.task_list)
+    layout.addWidget(self.update_to_excel)
     central_container.setLayout(layout)
     self.setCentralWidget(central_container)
 
     #load all saved tickets
     self.load_saved_tickets()
+
+  def export_to_excel(self):
+    "Method to trigger an export of data to excel"
+    with sqlite3.connect("schedule_management.db") as conn:
+      task_data = pd.read_sql_query("""SELECT * FROM tickets where ticket_type = 'Task'""", conn)
+      azure_data = pd.read_sql_query("""SELECT * FROM tickets where ticket_type = 'Azure'""", conn)
+
+    with pd.ExcelWriter('schedule_management.xlsx') as writer:
+      task_data.to_excel(writer, sheet_name="Tasks", index=False)
+      azure_data.to_excel(writer, sheet_name="Azure Tickets", index=False)
+
+    answer = QMessageBox.question(
+      self,
+      "Export to Excel Completed",
+      "Data successfully imported to Excel! \n\nDo you want to wipe the current data and start fresh?",
+      QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+    )
+    if answer == QMessageBox.StandardButton.Yes:
+      #wiping the database
+      self._db.wipe_database()
+      #clearing the front end of all the list
+      self.task_list.clear()
+      self._all_tickets.clear()
 
   def add_task(self):
     """Method triggered when the 'Add Task' button is clicked."""
@@ -398,8 +448,6 @@ class ScheduleManagementWindow(QMainWindow):
       else:
         list_item.setCheckState(Qt.Unchecked)
 
-
-
 def main():
   """This is the main function to start the application."""
   #Start the Application
@@ -411,7 +459,7 @@ def main():
 
   #to allow the application to exit
   sys.exit(app.exec())
-  
+
 import subprocess
 
 
@@ -426,7 +474,7 @@ def build_exe():
       "--collect-all", "PySide6",
       __file__
   ])
-  
+
   print(f"\n✅ Build complete: dist/{exe_name}.exe")
 
 
