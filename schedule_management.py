@@ -1,5 +1,5 @@
 import datetime
-from PySide6. QtWidgets import *
+from PySide6.QtWidgets import *
 from PySide6.QtCore import *
 import sqlite3
 import sys
@@ -10,12 +10,14 @@ version = "1.0.0"
 class ScheduleManagement:
   """This is the class for the ability to create and control
   schedules, tasks, and Azure ticket updates."""
-  def __init__(self, title, description):
+  def __init__(self, title, description, start_date="", end_date=""):
     self._title = title
     self._date = datetime.datetime.now()
     self._completed = False
     self._description = description
     self.db_id = None
+    self.start_date = start_date
+    self.end_date = end_date
 
   def task_complete(self):
     """Function for defining when a task is complete"""
@@ -43,8 +45,8 @@ class TaskTicket(ScheduleManagement):
   to allow all details of what is needed to be completed
   on the day."""
 
-  def __init__(self, title, description):
-    super().__init__(title, description)
+  def __init__(self, title, description, start_date="", end_date=""):
+    super().__init__(title, description, start_date, end_date)
 
 
 class AzureTickets(ScheduleManagement):
@@ -95,19 +97,21 @@ class DatabaseManager:
       is_completed BOOLEAN DEFAULT 0,
       ticket_number TEXT,
       ticket_url TEXT,
-      story_points INTEGER)
+      story_points INTEGER,
+      start_date TEXT,
+      end_date TEXT)
                      """)
       connection.commit()
 
-  def save_new_ticket(self, ticket_type, title, description, ticket_number="", ticket_url="", story_points=0):
+  def save_new_ticket(self, ticket_type, title, description, ticket_number="", ticket_url="", story_points=0, start_date="", end_date=""):
     """This function will save a new ticket to the database"""
     with sqlite3.connect(self._db_name) as connection:
       cursor = connection.cursor()
 
       cursor.execute("""
-      INSERT INTO tickets (ticket_type, title, description, is_completed, ticket_number, ticket_url, story_points)
-                     VALUES (?, ?, ?, 0, ?, ?, ?)"""
-                     , (ticket_type, title, description, ticket_number, ticket_url, story_points))
+      INSERT INTO tickets (ticket_type, title, description, is_completed, ticket_number, ticket_url, story_points, start_date, end_date)
+                     VALUES (?, ?, ?, 0, ?, ?, ?, ?, ?)"""
+                     , (ticket_type, title, description, ticket_number, ticket_url, story_points, start_date, end_date))
       connection.commit()
       return cursor.lastrowid
 
@@ -117,7 +121,7 @@ class DatabaseManager:
       cursor = connection.cursor()
 
       #selecting all we need to see
-      cursor.execute("SELECT id, ticket_type, title, description, is_completed, ticket_number, ticket_url, story_points FROM tickets")
+      cursor.execute("SELECT id, ticket_type, title, description, is_completed, ticket_number, ticket_url, story_points, start_date, end_date FROM tickets")
       return cursor.fetchall()
 
   def update_ticket_status(self, ticket_id):
@@ -174,12 +178,27 @@ class ScheduleManagementWindow(QMainWindow):
 
     self.task_field = QLineEdit()
     self.task_field.setPlaceholderText("Enter a task")
+    
+    #calendar widget 
+    self.start_date_edit = QDateEdit()
+    self.start_date_edit.setCalendarPopup(True)
+    self.start_date_edit.setDate(QDate.currentDate())
+    
+    self.end_date_edit = QDateEdit()
+    self.end_date_edit.setCalendarPopup(True)
+    self.end_date_edit.setDate(QDate.currentDate())
+    
+    
 
     self.add_button = QPushButton("Add Task")
     self.add_button.clicked.connect(self.add_task)
 
     #adding the widgets to the layout
     standard_layout.addWidget(self.task_field)
+    standard_layout.addWidget(QLabel("Start Date:"))
+    standard_layout.addWidget(self.start_date_edit)
+    standard_layout.addWidget(QLabel("End Date:"))
+    standard_layout.addWidget(self.end_date_edit)
     standard_layout.addWidget(self.add_button)
     self.tab_standard.setLayout(standard_layout)
 
@@ -224,6 +243,8 @@ class ScheduleManagementWindow(QMainWindow):
   def add_task(self):
     """Method triggered when the 'Add Task' button is clicked."""
     input_text = self.task_field.text()
+    start_str = self.start_date_edit.date().toString(Qt.ISODate)
+    end_str = self.end_date_edit.date().toString(Qt.ISODate)
 
     # Check if the text box is empty
     if not input_text:
@@ -237,11 +258,11 @@ class ScheduleManagementWindow(QMainWindow):
       return  # This acts as your "exit cause" for the method. It stops running right here.
 
     #building the backend object
-    new_task = TaskTicket(title=input_text, description="Created via GUI")
+    new_task = TaskTicket(title=input_text, description="Created via GUI", start_date=start_str, end_date=end_str)
     #Keeps it in short-term storage
     self._all_tickets.append(new_task)
     #Saves it to the database
-    generate_id = self._db.save_new_ticket(ticket_type="Task", title=input_text, description="Created via GUI")
+    generate_id = self._db.save_new_ticket(ticket_type="Task", title=input_text, description="Created via GUI",start_date=start_str, end_date=end_str)
     new_task.db_id = generate_id
 
     list_item = QListWidgetItem(new_task.title)
@@ -349,9 +370,9 @@ class ScheduleManagementWindow(QMainWindow):
     saved_tickets = self._db.get_all_tickets()
 
     for row in saved_tickets:
-      ticket_id, ticket_type, title, description, is_completed, ticket_number, ticket_url, story_points = row
+      ticket_id, ticket_type, title, description, is_completed, ticket_number, ticket_url, story_points, start_date, end_date = row
       if ticket_type == "Task":
-        new_task = TaskTicket(title=title, description=description)
+        new_task = TaskTicket(title=title, description=description, start_date=start_date, end_date=end_date)
         new_task.db_id = ticket_id
         self._all_tickets.append(new_task)
         list_item = QListWidgetItem(new_task.title)
