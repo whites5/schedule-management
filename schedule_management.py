@@ -7,7 +7,7 @@ import os
 import pandas as pd
 import openpyxl
 
-version = "1.0.0"
+version = "2.0.0"
 
 class ScheduleManagement:
   """This is the class for the ability to create and control
